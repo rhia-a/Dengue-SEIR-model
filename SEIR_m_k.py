@@ -3,11 +3,15 @@ import numpy as np
 from  scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
+"""
+SEIR model with k0 added in
+"""
+
 M_0 = 10_000 # initial number of mosquitoes 
 S_0 =10000 #initial number of susceptible
 E_0 = 500 #initial number of exposed 
 I_0=250 #initial number of infected 
-R_0=0 #initial number of recovered
+R_0=0 #initial number of recovered 
 N=S_0+E_0+I_0+R_0 #total population
 
 r= 0.6 #mosquito growth rate

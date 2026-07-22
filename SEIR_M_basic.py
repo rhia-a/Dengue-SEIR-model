@@ -3,6 +3,10 @@ import numpy as np
 from  scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
+"""
+SEIR model with mosquito abundance added in as a subplot
+"""
+
 M_0 = 10_000 # initial number of mosquitoes 
 S_0 =10000 #initial number of susceptible
 E_0 = 500 #initial number of exposed 

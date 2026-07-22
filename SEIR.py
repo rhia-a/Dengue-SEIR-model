@@ -3,6 +3,10 @@ import numpy as np
 from  scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
+"""
+Initial SEIR model
+"""
+
 S_0 =10000 #initial number of susceptible
 E_0 = 1000 #initial number of exposed 
 I_0=250 #initial number of infected 
