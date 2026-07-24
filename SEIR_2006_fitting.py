@@ -9,8 +9,9 @@ import pandas as pd
 SEIR model using 2006 Veracruz data, fitting of beta
 """
 
-data = pd.read_excel("Mexico data.xlsx", sheet_name = "Veracruz_2006")
-weeks = data["Week"]
+#reads the excel data and extracts the 2 columns I need
+data = pd.read_excel("Mexico data.xlsx", sheet_name = "Veracruz_2006") 
+weeks = data["Week"] 
 cases = data["dengue_total_cases"]
 
 M_0 = 10_000 # initial number of mosquitoes 
@@ -26,16 +27,16 @@ k0=10**5 #carrying capacity of mosquitoes
 epsilon=0.6 #seasonality amplitude
 phi=290 #what day of the year the carrying capacity peaks (oct 15)
 mu=0.05 #mosquito death rate (~20 days)
-beta0=2e-6 #Baseline infection rate 
+beta0=1.87e-6 #Baseline infection rate 
 sigma=0.2 #Exposed to infection rate (~5 days)
 gamma=0.1 #Recovery rate (~10 days)
 chi= 0.00003753 #natural birth and death rate (1/73)/365)) avg life expectancy - 73.7
 
-t = np.linspace(0,365,366) #time points /day over three years
+t = np.linspace(0,365,366) #time points /day over one year
 
 def carrying_capacity (t, k0, epsilon, phi):
    """
-   carrying_capacity (mosquito numbers varying with seasonality)
+   carrying_capacity (mosquito numbers varying with seasonality - calcs it for each day)
    - k0: baseline carrying capacity of mosquitoes
    - epsilon: seasonality amplitude
    - phi: what day of the year carrying capacity peaks
@@ -44,7 +45,7 @@ def carrying_capacity (t, k0, epsilon, phi):
 
 def beta_t (beta0, M):
     """
-    beta_t (infection rate at given time dependent on mosquitoes)
+    beta_t (infection rate at given time dependent on mosquitoes, more = higher force of infection)
     - beta0: baseline infection rate
     - M: number of mosquitoes
     """
@@ -65,9 +66,9 @@ def seir_m_model(y, t, N, r, k0, epsilon, phi, mu, beta0, sigma, gamma, chi):
     """
     M, S, E, I, R = y 
 
-    Kt = carrying_capacity(t, k0, epsilon, phi)
+    Kt = carrying_capacity(t, k0, epsilon, phi) #find day n Kt
 
-    beta = beta_t(beta0, M)
+    beta = beta_t(beta0, M) #find day n beta
 
     dMdt = r * M * (1-M/Kt) - mu * M
     dSdt = chi * N -beta * S * I / N -chi * S
@@ -83,51 +84,34 @@ def model (beta0):
     ret = odeint(seir_m_model, y_0, t, args=(N, r, k0, epsilon, phi, mu, beta0, sigma, gamma, chi)) #solves ode using parameters from initial conditions returning at all t values
     M, S, E, I, R = ret.T # T is transpose. Swaps rows and columns so 4 rows
 
-    weekly_I = []
+    weekly_I = [] #creates an empty list
 
-    for i in range (len(cases)):
+    for i in range (len(cases)):  
         start = i * 7
         end = start + 7
-        weekly_I.append(np.sum(I[start:end]))
+        weekly_I.append(np.sum(I[start:end]))  #runs the model for each week
 
     return np.array(weekly_I)
 
-weekly_I = model(beta0)
+weekly_I = model(beta0) #runs model using my initial guess
 
-def objective(scaled_beta):
+def objective(scaled_beta):  #optimising beta
     beta = scaled_beta[0] * 1e-6
     weekly_I = model(beta)
-    rss = np.sum((cases - weekly_I)**2)
+    rss = np.sum((cases - weekly_I)**2) #calc error (least squares regression)
     return rss
 
-#initial_guess = [2.0]       # represents beta = 2e-6
-#bounds = [(0.01, 100)]      # represents beta in [1e-8, 1e-4]
+best_result = None
 
-for start in [0.5, 1.0, 2.0, 5.0, 10.0]:
+for start in [0.5,1,2,5,10]: #testing different initial beta values
     result = minimize(objective, [start], bounds=[(0.01, 100)], method='L-BFGS-B')
-    print(f"start={start}: best beta={result.x[0]*1e-6:.3e}, RSS={result.fun:.1f}, nit={result.nit}")
-#result = minimize(objective, initial_guess, bounds=bounds, method='L-BFGS-B')
+    print(f"start={start}: beta={result.x[0]*1e-6:.3e}, RSS={result.fun:.1f}, nit={result.nit}")
 
-best_beta = result.x[0] * 1e-6
-print(result.success, result.message, result.nit)
+    if best_result is None or result.fun < best_result.fun:
+        best_result = result
+best_beta = best_result.x[0] * 1e-6 #converts scaled back into transmission rate
 print("Best beta:", best_beta)
-print("Minimum RSS:", result.fun)
-
-"""
-def objective (beta):
-    weekly_I = model(beta[0])
-    rss = np.sum((cases - weekly_I)**2) #calculating the error
-    return rss
-
-initial_guess = [2e-6]
-bounds = [(1e-8, 1e-4)]
-result = minimize(objective, initial_guess, bounds=bounds, method='L-BFGS-B')
-print ("Best beta0:", result.x[0])
-print("Minimum RSS:", result.fun)
-
-best_beta = result.x[0]
-weekly_I = model(best_beta)
-"""
+print("Minimum RSS:", best_result.fun)
 
 plt.figure(figsize=(8,5))
 plt.plot(weeks, cases, 'ro', label='Observed')
@@ -138,25 +122,3 @@ plt.ylabel("Cases")
 plt.title("Observed vs Model Veracruz Dengue Cases (2006)")
 plt.show()
 
-
-#plotting the SEIR against time
-"""
-axes[0].plot(t, S, 'b', label='Susceptible')
-axes[0].plot(t, E, 'y', label='Exposed')
-axes[0].plot(t, I, 'r', label='Infected')
-axes[0].plot(t, R, 'g', label='Recovered')
-axes[0].set_xlabel('Time (days)')
-axes[0].set_ylabel('Population')
-axes[0].set_title('SEIR with mosquitoes Model Simulation')
-axes[0].legend()
-axes[0].grid()
-
-#plotting mosquitoes against time
-axes[1].plot(t, M, color='purple', label= "Mosquitoes")
-axes[1].set_xlabel('Time (days)')
-axes[1].set_ylabel('Population')
-axes[1].set_title('SEIR with mosquitoes Model Simulation')
-axes[1].legend()
-axes[1].grid()
-plt.show()
-"""
