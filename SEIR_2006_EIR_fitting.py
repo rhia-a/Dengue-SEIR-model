@@ -22,7 +22,7 @@ R0 = 0 #initial number of recovered
 N = S0+E0+I0+R0 #total population 
 #7,110,214 - population from 2005 census
 
-rho=0.6 #mosquito growth rate
+r=0.6 #mosquito growth rate
 k0=10**5 #carrying capacity of mosquitoes
 epsilon=0.6 #seasonality amplitude
 phi=290 #what day of the year the carrying capacity peaks (oct 15)
@@ -52,7 +52,7 @@ def beta_t (beta0, M):
     return beta0 * M 
 
 
-def seir_m_model(y, t, N, rho, k0, epsilon, phi, mu, beta0, sigma, gamma, chi):
+def seir_m_model(y, t, N, r, k0, epsilon, phi, mu, beta0, sigma, gamma, chi):
     """
     SEIR_m model
     - r: mosquito growth rate
@@ -70,7 +70,7 @@ def seir_m_model(y, t, N, rho, k0, epsilon, phi, mu, beta0, sigma, gamma, chi):
 
     beta = beta_t(beta0, M) #find day n beta
 
-    dMdt = rho * M * (1-M/Kt) - mu * M
+    dMdt = r * M * (1-M/Kt) - mu * M
     dSdt = chi * N -beta * S * I / N -chi * S
     dEdt = beta * S * I / N - sigma * E - chi * E
     dIdt = sigma * E - gamma * I - chi * I
@@ -79,12 +79,12 @@ def seir_m_model(y, t, N, rho, k0, epsilon, phi, mu, beta0, sigma, gamma, chi):
 
 y_0= M_0, S0, E0, I0, R0 #set initial conditions
 
-def model (beta0, epsilon,phi,mu,rho,gamma,sigma, E0, I0, R0): #solving the model for these parameters
+def model (beta0, epsilon,phi,mu,r,gamma,sigma, E0, I0, R0): #solving the model for these parameters
 
     S0 = N - E0 - I0 - R0 # keeps total pop constant
     y_0 = (M_0, S0, E0, I0, R0) #initial values that go into odeint
 
-    ret = odeint(seir_m_model, y_0, t, args=(N, rho, k0, epsilon, phi, mu, beta0, sigma, gamma, chi)) #solves ode using parameters from initial conditions returning at all t values
+    ret = odeint(seir_m_model, y_0, t, args=(N, r, k0, epsilon, phi, mu, beta0, sigma, gamma, chi)) #solves ode using parameters from initial conditions returning at all t values
     M, S, E, I, R = ret.T # T is transpose. Swaps rows and columns 
 
     weekly_I = [] #creates an empty list
@@ -96,11 +96,11 @@ def model (beta0, epsilon,phi,mu,rho,gamma,sigma, E0, I0, R0): #solving the mode
 
     return np.array(weekly_I)
 
-weekly_I = model(beta0,epsilon,phi,mu,rho, gamma, sigma, E0, I0, R0) #runs model using my initial guess
+weekly_I = model(beta0,epsilon,phi,mu,r, gamma, sigma, E0, I0, R0) #runs model using my initial guess
 
 def objective_beta(scaled_beta):  #optimising beta
     beta = scaled_beta[0] * 1e-6 #scaling it as larger numbers are easier for scipy
-    weekly_I = model(beta,epsilon, phi,mu,rho,gamma,sigma, E0, I0, R0) #runs model
+    weekly_I = model(beta,epsilon, phi,mu,r,gamma,sigma, E0, I0, R0) #runs model
     rss = np.sum((cases - weekly_I)**2) #calc error (least squares regression)
     return rss
 
@@ -121,7 +121,7 @@ beta0 = best_beta # fixes beta0
 
 def objective_epsilon(epsilon): #repeat steps for epsilon now.
 
-    weekly_I = model(beta0, epsilon[0], phi, mu, rho, gamma, sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon[0], phi, mu, r, gamma, sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
@@ -142,7 +142,7 @@ epsilon = best_epsilon # fixes epsilon
 
 def objective_phi(phi): #repeat steps for phi
 
-    weekly_I = model(beta0, epsilon, phi[0], mu, rho, gamma, sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi[0], mu, r, gamma, sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
@@ -163,13 +163,13 @@ phi = best_phi # fixes phi
 
 def objective_mu(mu): # repeats steps for mu
 
-    weekly_I = model(beta0, epsilon, phi, mu[0], rho, gamma, sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi, mu[0], r, gamma, sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
 best_result = None
 
-for start in [0.02, 0.04, 0.06, 0.08]: #testing different initial phi values
+for start in [0.02, 0.04, 0.06, 0.08]: #testing different initial mu values
     result = minimize(objective_mu, [start], bounds=[(0, 10)], method='L-BFGS-B')
     print(f"start={start}: mu={result.x[0]}, RSS={result.fun:.1f}, nit={result.nit}")
 
@@ -182,36 +182,36 @@ print("Minimum RSS:", best_result.fun)
 
 mu = best_mu # fixes mu
 
-def objective_rho(rho): # repeat steps for rho
+def objective_r(r): # repeat steps for r
 
-    weekly_I = model(beta0, epsilon, phi, mu, rho[0], gamma, sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi, mu, r[0], gamma, sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
 best_result = None
 
-for start in [0.2, 0.4, 0.6, 0.8]: #testing different initial phi values
-    result = minimize(objective_rho, [start], bounds=[(0, 1)], method='L-BFGS-B')
+for start in [0.2, 0.4, 0.6, 0.8]: #testing different initial r values
+    result = minimize(objective_r, [start], bounds=[(0, 1)], method='L-BFGS-B')
     print(f"start={start}: rho={result.x[0]}, RSS={result.fun:.1f}, nit={result.nit}")
 
     if best_result is None or result.fun < best_result.fun:
         best_result = result
 
-best_rho = best_result.x[0]
-print("Best rho:", best_rho)
+best_r = best_result.x[0]
+print("Best rho:", best_r)
 print("Minimum RSS:", best_result.fun)
 
-rho = best_rho # fixes rho
+r = best_r # fixes r
 
 def objective_gamma(gamma): # repeat steps for gamma
 
-    weekly_I = model(beta0, epsilon, phi, mu, rho, gamma[0], sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi, mu, r, gamma[0], sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
 best_result = None
 
-for start in [0.05, 0.1, 0.15, 0.2]: #testing different initial phi values
+for start in [0.05, 0.1, 0.15, 0.2]: #testing different initial gamma values
     result = minimize(objective_gamma, [start], bounds=[(0, 1)], method='L-BFGS-B')
     print(f"start={start}: gamma={result.x[0]}, RSS={result.fun:.1f}, nit={result.nit}")
 
@@ -226,13 +226,13 @@ gamma = best_gamma # fixes gamma
 
 def objective_sigma(sigma): # repeats steps for sigma
 
-    weekly_I = model(beta0, epsilon, phi, mu, rho, gamma, sigma[0], E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi, mu, r, gamma, sigma[0], E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
     
 best_result = None
 
-for start in [0.1, 0.2, 0.4, 0.6, 0.8]: #testing different initial phi values
+for start in [0.1, 0.2, 0.4, 0.6, 0.8]: #testing different initial sigma values
     result = minimize(objective_sigma, [start], bounds=[(0, 1)], method='L-BFGS-B')
     print(f"start={start}: sigma={result.x[0]}, RSS={result.fun:.1f}, nit={result.nit}")
 
@@ -251,7 +251,7 @@ def objective_initial(params): # repeat steps for E0,I0,R0
     I0 = params[1]
     R0 = params[2]
 
-    weekly_I = model(beta0, epsilon, phi, mu, rho, gamma, sigma, E0, I0, R0)
+    weekly_I = model(beta0, epsilon, phi, mu, r, gamma, sigma, E0, I0, R0)
     rss = np.sum((cases - weekly_I)**2)
     return rss
 
@@ -271,7 +271,7 @@ print("Best R0 =", best_R0)
 print("RSS =", result.fun)
 
 
-weekly_I = model(best_beta, best_epsilon, best_phi, best_mu, best_rho, best_gamma, best_sigma, best_E0, best_I0, best_R0) #model with fixed parameters
+weekly_I = model(best_beta, best_epsilon, best_phi, best_mu, best_r, best_gamma, best_sigma, best_E0, best_I0, best_R0) #model with fixed parameters
 
 """
 Kt = carrying_capacity(t, k0, epsilon, phi)
