@@ -31,7 +31,7 @@ beta0= 2e-6 #Baseline infection rate
 sigma=0.1818 #Exposed to infection rate (~5.5 days) fixed
 gamma=0.1 #Recovery rate (~10 days) fixed
 chi= 0.00003753 #natural birth and death rate (1/73)/365)) avg life expectancy - 73.7 fixed
-rho = 1 #reporting_rate fixed
+rho = 0.25 #reporting_rate fixed
 
 t = np.linspace(0,365,366) #time points /day over one year
 
@@ -87,19 +87,18 @@ def model (beta0, epsilon,phi,mu,r,sigma,gamma, E0, I0, R0): #solving the model 
 
     ret = odeint(seir_m_model, y_0, t, args=(N, r, k0, epsilon, phi, mu, beta0, sigma, gamma, chi)) #solves ode using parameters from initial conditions returning at all t values
     M, S, E, I, R = ret.T # T is transpose. Swaps rows and columns 
-    daily_incidence = sigma * E #measuring sigmaE rather than I
     
+    weekly_cases = [] #creates an empty list
 
-    weekly_incidence = [] #creates an empty list
+    daily_cases = rho * sigma * E #measuring sigmaE rather than I
 
     for i in range (len(cases)):  
         start = i * 7
         end = start + 7
-        weekly_incidence.append(np.sum(daily_incidence[start:end]))  #runs the model for each week
-    weekly_incidence = np.array(weekly_incidence)
+        weekly_cases.append(np.sum(daily_cases[start:end]))  #runs the model for each week
+    weekly_cases = np.array(weekly_cases)
 
-    reported_cases = rho * weekly_incidence #
-    return reported_cases
+    return np.array(weekly_cases)
 
 def objective(params):
 
