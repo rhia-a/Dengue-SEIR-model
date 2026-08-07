@@ -28,7 +28,7 @@ epsilon=0.6 #seasonality amplitude
 phi=290 #what day of the year the carrying capacity peaks (oct 15)
 mu=0.05 #mosquito death rate (~20 days)
 beta0= 2e-6 #Baseline infection rate 
-sigma=0.2 #Exposed to infection rate (~5 days)
+sigma=0.18 #Exposed to infection rate (~5.5 days)
 gamma=0.1 #Recovery rate (~10 days)
 chi= 0.00003753 #natural birth and death rate (1/73)/365)) avg life expectancy - 73.7
 
